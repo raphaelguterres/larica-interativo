@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Catálogo Interativo da Larica</title>
+  <script src="https://cdn.jsdelivr.net/npm/framer-motion@10.16.1/dist/framer-motion.umd.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #fafafa;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    h1 {
+      color: #2e7d32;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .filtros {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+    .filtros select {
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background-color: white;
+      font-size: 16px;
+      transition: border-color 0.2s;
+    }
+    .filtros select:focus {
+      border-color: #4caf50;
+      outline: none;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+    }
+    .item {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+      text-align: center;
+      font-size: 24px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .item:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+    .preco {
+      color: #d32f2f;
+      font-weight: 600;
+      margin-top: 10px;
+      font-size: 18px;
+    }
+    .botao-carrinho {
+      margin-top: 12px;
+      padding: 10px 16px;
+      background: #2e7d32;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.3s ease;
+    }
+    .botao-carrinho:hover {
+      background: #1b5e20;
+    }
+    .carrinho {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: white;
+      border-top: 1px solid #eee;
+      padding: 16px;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+      z-index: 1000;
+    }
+    .carrinho h2 {
+      font-size: 18px;
+      margin: 0 0 10px;
+    }
+    .carrinho ul {
+      padding-left: 20px;
+      margin: 0;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    .carrinho li {
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+    .btn-finalizar {
+      margin-top: 10px;
+      width: 100%;
+      padding: 12px;
+      background: #0288d1;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.3s ease;
+    }
+    .btn-finalizar:hover {
+      background: #01579b;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+    .modal-content {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 420px;
+      text-align: center;
+      position: relative;
+    }
+    .modal-content h3 {
+      margin-top: 0;
+    }
+    .modal-content button {
+      margin: 5px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .modal-content input {
+      padding: 10px;
+      width: 90%;
+      margin: 6px auto;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    .close {
+      position: absolute;
+      right: 15px;
+      top: 10px;
+      font-size: 28px;
+      cursor: pointer;
+      color: #999;
+    }
+    .close:hover {
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌿 Catálogo Interativo da Larica</h1>
+  <div class="filtros">
+    <label for="tipo">Filtrar por:</label>
+    <select id="tipo" onchange="filtrar()">
+      <option value="todos">Todos</option>
+      <option value="comida">Comidas</option>
+      <option value="erva">Ervas</option>
+      <option value="bebida">Bebidas</option>
+    </select>
+  </div>
+
+  <div class="grid" id="catalogo"></div>
+  <div class="carrinho">
+    <h2>🛒 Carrinho</h2>
+    <ul id="lista-carrinho"></ul>
+    <p><strong>Total:</strong> R$ <span id="total-carrinho">0</span></p>
+    <button class="btn-finalizar" onclick="abrirPagamento()">Finalizar Compra</button>
+  </div>
+
+  <div id="modalPagamento" class="modal">
+    <div class="modal-content">
+      <h3>Escolha o método de pagamento</h3>
+      <button onclick="mostrarCartao()">💳 Cartão</button>
+      <button onclick="mostrarPix()">🔷 PIX</button>
+      <div id="pagamento-info" style="margin-top: 20px;"></div>
+      <span class="close" onclick="fecharModal()">&times;</span>
+    </div>
+  </div>
+
+  <script>
+    const itens = [
+      { tipo: "comida", nome: "🍕 Pizza", preco: 35 },
+      { tipo: "comida", nome: "🍔 Hambúrguer", preco: 25 },
+      { tipo: "comida", nome: "🍣 Sushi", preco: 40 },
+      { tipo: "erva", nome: "🌿 Purple Haze", preco: 40 },
+      { tipo: "erva", nome: "🍋 Lemon Kush", preco: 45 },
+      { tipo: "erva", nome: "🧱 Haxixe", preco: 50 },
+      { tipo: "bebida", nome: "💧 Água", preco: 3 },
+      { tipo: "bebida", nome: "🥤 Refrigerante", preco: 7 },
+      { tipo: "bebida", nome: "🥭 Suco de manga", preco: 10 }
+    ];
+
+    let carrinho = [];
+
+    function renderizar(itensFiltrados) {
+      const catalogo = document.getElementById("catalogo");
+      catalogo.innerHTML = "";
+      itensFiltrados.forEach(item => {
+        const itemHTML = document.createElement('div');
+        itemHTML.className = 'item';
+        itemHTML.innerHTML = `
+          <div>${item.nome}</div>
+          <div class="preco">R$ ${item.preco}</div>
+          <button class="botao-carrinho" onclick='adicionarAoCarrinho(${JSON.stringify(item)})'>Adicionar</button>
+        `;
+        catalogo.appendChild(itemHTML);
+      });
+    }
+
+    function filtrar() {
+      const tipoSelecionado = document.getElementById("tipo").value;
+      if (tipoSelecionado === "todos") {
+        renderizar(itens);
+      } else {
+        const filtrados = itens.filter(item => item.tipo === tipoSelecionado);
+        renderizar(filtrados);
+      }
+    }
+
+    function adicionarAoCarrinho(item) {
+      carrinho.push(item);
+      atualizarCarrinho();
+    }
+
+    function atualizarCarrinho() {
+      const lista = document.getElementById("lista-carrinho");
+      const total = document.getElementById("total-carrinho");
+      lista.innerHTML = "";
+      let soma = 0;
+      carrinho.forEach(i => {
+        lista.innerHTML += `<li>${i.nome} - R$ ${i.preco}</li>`;
+        soma += i.preco;
+      });
+      total.innerText = soma.toFixed(2);
+    }
+
+    function abrirPagamento() {
+      document.getElementById("modalPagamento").style.display = "flex";
+    }
+
+    function fecharModal() {
+      document.getElementById("modalPagamento").style.display = "none";
+      document.getElementById("pagamento-info").innerHTML = "";
+    }
+
+    function mostrarCartao() {
+      document.getElementById("pagamento-info").innerHTML = `
+        <p>Insira os dados do seu cartão:</p>
+        <input type='text' placeholder='Número do Cartão' /><br>
+        <input type='text' placeholder='Nome no Cartão' /><br>
+        <input type='text' placeholder='Validade / CVV' /><br><br>
+        <button style='background:#4caf50;color:white;' onclick='alert("Pagamento via Cartão simulado!")'>Pagar</button>
+      `;
+    }
+
+    function mostrarPix() {
+      document.getElementById("pagamento-info").innerHTML = `
+        <p>Escaneie o QR Code abaixo com seu app de banco:</p>
+        <img src="https://upload.wikimedia.org/wikipedia/commons/9/94/QR_Code_example.png" alt="QR Code PIX" width="150" />
+        <br><button style='margin-top:10px;background:#4caf50;color:white;' onclick='alert("Pagamento via PIX simulado!")'>Já paguei</button>
+      `;
+    }
+
+    renderizar(itens);
+  </script>
+</body>
+</html>
